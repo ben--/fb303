@@ -53,4 +53,10 @@ if (PYTHON_EXTENSIONS)
     TARGETS fb303_core_py.thrift_includes
     EXPORT fb303-exports
   )
+
+  install_fb_python_library(fb303_core_py3 EXPORT fb303-exports)
+  install(
+    TARGETS fb303_core_py3.thrift_includes
+    EXPORT fb303-exports
+  )
 endif ()

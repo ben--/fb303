@@ -1,12 +1,11 @@
-# Copyright (c) Facebook, Inc. and its affiliates.
+# Copyright (c) Meta Platforms, Inc. and affiliates.
+#
+# This software may be used and distributed according to the terms of the
+# GNU General Public License version 2.
 
 include(FBCMakeParseArgs)
-include(FBPythonBinary)
 
-# Generate a Python library from a thrift file
-function(add_fbthrift_py_library LIB_NAME THRIFT_FILE)
-  message(STATUS "#### add_fbthrift_py_library:0(${LIB_NAME}, ${THRIFT_FILE})")
-  # Parse the arguments
+function(add_fbthrift_rust_library LIB_NAME THRIFT_FILE)
   set(one_value_args NAMESPACE THRIFT_INCLUDE_DIR)
   set(multi_value_args SERVICES DEPENDS OPTIONS)
   fb_cmake_parse_args(
@@ -18,23 +17,26 @@ function(add_fbthrift_py_library LIB_NAME THRIFT_FILE)
   endif()
 
   get_filename_component(base ${THRIFT_FILE} NAME_WE)
-  set(output_dir "${CMAKE_CURRENT_BINARY_DIR}/${THRIFT_FILE}-py")
+  set(output_dir "${CMAKE_CURRENT_BINARY_DIR}/${THRIFT_FILE}-rs")
+  set(rust_output_dir "${output_dir}/gen-rust")
 
-  # Parse the namespace value
-  if (NOT DEFINED ARG_NAMESPACE)
-    set(ARG_NAMESPACE "${base}")
-  endif()
-
-  string(REPLACE "." "/" namespace_dir "${ARG_NAMESPACE}")
-  set(py_output_dir "${output_dir}/gen-py/${namespace_dir}")
   list(APPEND generated_sources
-    "${py_output_dir}/__init__.py"
-    "${py_output_dir}/ttypes.py"
-    "${py_output_dir}/constants.py"
+    "${rust_output_dir}/client.rs"
+    "${rust_output_dir}/consts.rs"
+    "${rust_output_dir}/errors.rs"
+    "${rust_output_dir}/server.rs"
+    "${rust_output_dir}/services.rs"
+    "${rust_output_dir}/types.rs"
+
+    "${rust_output_dir}/mock.rs"
+
+    "${rust_output_dir}/namespace-cpp2"
+    "${rust_output_dir}/namespace-rust"
+    "${rust_output_dir}/service-names"
   )
   foreach(service IN LISTS ARG_SERVICES)
     list(APPEND generated_sources
-      ${py_output_dir}/${service}.py
+      ${rust_output_dir}/${service}.rs
     )
   endforeach()
 
@@ -63,51 +65,33 @@ function(add_fbthrift_py_library LIB_NAME THRIFT_FILE)
   # include list as a single argument and split it up before invoking the
   # thrift compiler.
   if (NOT POLICY CMP0067)
-    message(FATAL_ERROR "add_fbthrift_py_library() requires CMake 3.8+")
+    message(FATAL_ERROR "add_fbthrift_rust_library() requires CMake 3.8+")
   endif()
   set(
     thrift_include_options
     "-I;$<JOIN:$<TARGET_PROPERTY:${LIB_NAME}.thrift_includes,INTERFACE_INCLUDE_DIRECTORIES>,;-I;>"
   )
 
-  # Always force generation of "new-style" python classes for Python 2
-  list(APPEND ARG_OPTIONS "new_style")
   # CMake 3.12 is finally getting a list(JOIN) function, but until then
   # treating the list as a string and replacing the semicolons is good enough.
   string(REPLACE ";" "," GEN_ARG_STR "${ARG_OPTIONS}")
 
-  # Emit the rule to run the thrift compiler
   add_custom_command(
     OUTPUT
       ${generated_sources}
-    COMMENT "#### add_fbthrift_py_library:3 generating thrift sources for ${LIB_NAME}"
-    COMMAND_EXPAND_LISTS
     COMMAND
       "${CMAKE_COMMAND}" -E make_directory "${output_dir}"
     COMMAND
-      "${FBTHRIFT_COMPILER}"
-      --legacy-strict
-      --gen "py:${GEN_ARG_STR}"
-      "${thrift_include_options}"
-      -o "${output_dir}"
-      "${CMAKE_CURRENT_SOURCE_DIR}/${THRIFT_FILE}"
+      cargo build --target-dir "${output_dir}/thrift"
+        # -E env OUT_DIR="${output_dir}"
+        #   "PATH=${CMAKE_CURRENT_BINARY_DIR}/my-bin:$ENV{PATH}"
     WORKING_DIRECTORY
-      "${CMAKE_BINARY_DIR}"
+      "${CMAKE_CURRENT_SOURCE_DIR}"
     MAIN_DEPENDENCY
       "${THRIFT_FILE}"
     DEPENDS
       "${FBTHRIFT_COMPILER}"
   )
 
-  # We always want to pass the namespace as "" to this call:
-  # thrift will already emit the files with the desired namespace prefix under
-  # gen-py.  We don't want add_fb_python_library() to prepend the namespace a
-  # second time.
-  add_fb_python_library(
-    "${LIB_NAME}"
-    BASE_DIR "${output_dir}/gen-py"
-    NAMESPACE ""
-    SOURCES ${generated_sources}
-    DEPENDS ${ARG_DEPENDS} FBThrift::thrift_py
-  )
+  add_custom_target("${LIB_NAME}.PHONY" ALL DEPENDS ${generated_sources})
 endfunction()

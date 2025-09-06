@@ -7,7 +7,6 @@ find_package(FBThrift REQUIRED)
 
 # Generate a Python library from a thrift file
 function(add_fbthrift_py3_library LIB_NAME THRIFT_FILE)
-  message(STATUS "#### add_fbthrift_py3_library:0(${LIB_NAME}, ${THRIFT_FILE})")
   # Parse the arguments
   set(one_value_args NAMESPACE THRIFT_INCLUDE_DIR)
   set(multi_value_args SERVICES DEPENDS OPTIONS)
@@ -21,18 +20,14 @@ function(add_fbthrift_py3_library LIB_NAME THRIFT_FILE)
 
   get_filename_component(base ${THRIFT_FILE} NAME_WE)
   set(output_dir "${CMAKE_CURRENT_BINARY_DIR}/${THRIFT_FILE}-py3")
-  message(STATUS "#### add_fbthrift_py_library:1(output_dir = ${output_dir})")
 
   # Parse the namespace value
   if (NOT DEFINED ARG_NAMESPACE)
     set(ARG_NAMESPACE "${base}")
   endif()
-  message(STATUS "#### add_fbthrift_py_library:2(ARG_NAMESPACE = ${ARG_NAMESPACE})")
 
   string(REPLACE "." "/" namespace_dir "${ARG_NAMESPACE}")
-  message(STATUS "#### add_fbthrift_py_library:2.1(namespace_dir = ${ARG_NAMESPACE})")
   set(py_output_dir "${output_dir}/gen-python/${namespace_dir}")
-  message(STATUS "#### add_fbthrift_py_library:2.2(py_output_dir = ${py_output_dir})")
   list(APPEND generated_sources
     # "${py_output_dir}/__init__.py"
     "${py_output_dir}/thrift_abstract_types.py"
@@ -43,8 +38,6 @@ function(add_fbthrift_py3_library LIB_NAME THRIFT_FILE)
     "${py_output_dir}/thrift_types.py"
     # thrift_types.pyi
   )
-  message(STATUS "#### add_fbthrift_py_library:2.3a ${ARG_SERVICES}")
-  message(STATUS "#### add_fbthrift_py_library:2.3b ${generated_sources}")
   if(ARG_SERVICES)
     list(APPEND generated_sources
       "${py_output_dir}/thrift_clients.py"
@@ -53,12 +46,6 @@ function(add_fbthrift_py3_library LIB_NAME THRIFT_FILE)
       # thrift_mutable_services.py
     )
   endif()
-  message(STATUS "#### add_fbthrift_py_library:2.4 ${generated_sources}")
-  # foreach(service IN LISTS ARG_SERVICES)
-  #   list(APPEND generated_sources
-  #     # ${py_output_dir}/${service}.py
-  #   )
-  # endforeach()
 
   # Define a dummy interface library to help propagate the thrift include
   # directories between dependencies.
@@ -98,12 +85,10 @@ function(add_fbthrift_py3_library LIB_NAME THRIFT_FILE)
   # treating the list as a string and replacing the semicolons is good enough.
   string(REPLACE ";" "," GEN_ARG_STR "${ARG_OPTIONS}")
 
-  message(STATUS "#### add_fbthrift_py_library:3 - adding custom command")
   # Emit the rule to run the thrift compiler
   add_custom_command(
     OUTPUT
       ${generated_sources}
-    COMMENT "#### add_fbthrift_py3_library:4 generating thrift sources for ${LIB_NAME}"
     COMMAND_EXPAND_LISTS
     COMMAND
       "${CMAKE_COMMAND}" -E make_directory "${output_dir}"
@@ -115,20 +100,6 @@ function(add_fbthrift_py3_library LIB_NAME THRIFT_FILE)
       "${thrift_include_options}"
       -o "${output_dir}"
       "${CMAKE_CURRENT_SOURCE_DIR}/${THRIFT_FILE}"
-    # COMMENT "#### add_fbthrift_py3_library:5 running sed ..."
-    # COMMENT "                                        ... on ${generated_sources}"
-    # COMMAND
-    #   sed
-    #   -i ""
-    #   -e 's/from . import \(apache.thrift.metadata\)*.thrift_types as _fbthrift_metadata/from . import thrift_metadata as _fbthrift_metadata/'
-    #   ${generated_sources}
-    # COMMAND ${CMAKE_COMMAND} -E env bash -c
-    #       "for f in \"\$@\"\; do \
-    #          [ -f \"\$f\" ] || continue\; \
-    #          sed -i'' -e 's/from . import \\(apache.thrift.metadata\\)*.thrift_types as _fbthrift_metadata/from . import thrift_metadata as _fbthrift_metadata/' \"\$f\"\; \
-    #        done"
-    #        ${always_generated_sources} ${sometimes_generated_sources}
-    # VERBATIM
     WORKING_DIRECTORY
       "${CMAKE_BINARY_DIR}"
     MAIN_DEPENDENCY
@@ -146,17 +117,9 @@ function(add_fbthrift_py3_library LIB_NAME THRIFT_FILE)
     BASE_DIR "${output_dir}/gen-python"
     NAMESPACE ""
     SOURCES ${generated_sources}
-    # DEPENDS ${ARG_DEPENDS} FBThrift::thrift_py
-    # DEPENDS ${ARG_DEPENDS} FBThrift::thrift_py Folly::folly_python_cpp
-    DEPENDS ${ARG_DEPENDS}  Folly::folly_python_cpp
+    DEPENDS ${ARG_DEPENDS} Folly::folly_python_cpp
     NORMAL_DEPENDS
       Folly::folly_python_cpp
       FBThrift::thrift_python_cpp
-    # thrift_python_and_py3_bindings
-    # DEPENDS ${ARG_DEPENDS} fbthrift
-    # FBThrift::thrift_python_and_py3_bindings 
   )
-
-  # wrap_non_fb_python_library("Folly::folly_python_cpp")
-  # wrap_non_fb_python_library("folly_python_cpp" "Folly::folly_python_cpp")
 endfunction()

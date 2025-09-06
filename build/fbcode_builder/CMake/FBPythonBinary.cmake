@@ -101,7 +101,6 @@ set(
 # manifest.
 #
 function(add_fb_python_executable TARGET)
-  message(STATUS "#### add_fb_python_executable:0 ${TARGET}")
   fb_py_check_available()
 
   # Parse the arguments
@@ -122,16 +121,12 @@ function(add_fb_python_executable TARGET)
     NORMAL_DEPENDS ${ARG_NORMAL_DEPENDS}
   )
 
-  message(STATUS "#### add_fb_python_executable:1")
-
   # FIXME: This abuse of INTERFACE_INCLUDE_DIRECTORIES is tightly coupled
   # to the set_target_includes() below
   set(
     manifest_files
-    # "$<TARGET_PROPERTY:${TARGET}.main_lib.py_lib,INTERFACE_INCLUDE_DIRECTORIES>"
     "$<FILTER:$<TARGET_PROPERTY:${TARGET}.main_lib.py_lib,INTERFACE_INCLUDE_DIRECTORIES>,EXCLUDE,/.*/include>"
   )
-  message(STATUS "#### add_fb_python_executable:2 manifest_files = ${manifest_files}")
   set(
     source_files
     "$<TARGET_PROPERTY:${TARGET}.main_lib.py_lib,INTERFACE_SOURCES>"
@@ -142,13 +137,13 @@ function(add_fb_python_executable TARGET)
   # If we are using CMake 3.8+ we can use COMMAND_EXPAND_LISTS.
   # CMP0067 isn't really the policy we care about, but seems like the best way
   # to check if we are running 3.8+.
-  # if (POLICY CMP0067)
+  if (POLICY CMP0067)
     set(extra_cmd_params COMMAND_EXPAND_LISTS)
     set(make_py_args "${manifest_files}")
-  # else()
-  #   set(extra_cmd_params)
-  #   set(make_py_args --manifest-separator "::" "$<JOIN:${manifest_files},::>")
-  # endif()
+  else()
+    set(extra_cmd_params)
+    set(make_py_args --manifest-separator "::" "$<JOIN:${manifest_files},::>")
+  endif()
 
   set(output_file "${TARGET}${CMAKE_EXECUTABLE_SUFFIX}")
   if(WIN32)
@@ -177,16 +172,9 @@ function(add_fb_python_executable TARGET)
     list(APPEND make_py_args "--main" "${ARG_MAIN_MODULE}")
   endif()
 
-  message(STATUS "#### add_fb_python_executable:7 make_py_args = ${make_py_args}")
-  message(STATUS "#### add_fb_python_executable:7.1 creating command using ${FB_MAKE_PYTHON_ARCHIVE}")
-
   add_custom_command(
     OUTPUT "${zipapp_output_file}"
     ${extra_cmd_params}
-    COMMENT
-      "${Python3_EXECUTABLE}" "${FB_MAKE_PYTHON_ARCHIVE}"
-      -o "${zipapp_output}"
-      ${make_py_args}
     COMMAND
       "${Python3_EXECUTABLE}" "${FB_MAKE_PYTHON_ARCHIVE}"
       -o "${zipapp_output}"
@@ -222,7 +210,6 @@ function(add_fb_python_executable TARGET)
     endif()
   endif()
 
-  message(STATUS "#### add_fb_python_executable:8 target = ${TARGET}.GEN_PY_EXE, output_file = ${output_file}")
   # Add an "ALL" target that depends on force ${TARGET},
   # so that ${TARGET} will be included in the default list of build targets.
   add_custom_target("${TARGET}.GEN_PY_EXE" ALL DEPENDS "${output_file}")
@@ -323,21 +310,16 @@ function(add_fb_python_unittest TARGET)
   endif()
   set(_python_dirs "")
   set(_runtime_dirs "")
-  message(STATUS "#### add_fb_python_unittest:5.9 ARG_DEPENDS = ${ARG_DEPENDS}")
   foreach( _dep IN LISTS ARG_DEPENDS)
-    message(STATUS "#### add_fb_pydd_thon_unittest:6 dep = ${_dep}")
     list(APPEND _python_dirs "$<TARGET_PROPERTY:${_dep}.py_lib,INTERFACE_INCLUDE_DIRECTORIES>")
     list(APPEND _runtime_dirs "$<INSTALL_INTERFACE:${_dep}.py_lib>")
   endforeach()
   foreach( _dep IN LISTS ARG_NORMAL_DEPENDS)
-    message(STATUS "#### add_fb_python_unittest:7 dep = ${_dep}")
     list(APPEND _runtime_dirs "$<TARGET_FILE_DIR:${_dep}>")
   endforeach()
   set(_python_path "$<JOIN:${_python_dirs},${_path_sep}>")
   set(_runtime_path "$<JOIN:${_runtime_dirs},${_path_sep}>")
-  message(STATUS "#### add_fb_python_unittest:7.1 _runtime_path = ${_runtime_path}")
   set(_runtime_env_var "$<IF:$<PLATFORM_ID:Darwin>,DYLD_LIBRARY_PATH,LD_LIBRARY_PATH>")
-  message(STATUS "#### add_fb_python_unittest:7.2 _runtime_env_var = ${_runtime_env_var}")
 
   # Run test discovery after the test executable is built.
   # This logic is based on the code for gtest_discover_tests()
@@ -436,7 +418,6 @@ endfunction()
 #   will then be read at build-time in order to build executables.
 #
 function(add_fb_python_library LIB_NAME)
-  message(STATUS "#### add_fb_python_library:0 ${LIB_NAME}")
   fb_py_check_available()
 
   # Parse the arguments
@@ -449,9 +430,6 @@ function(add_fb_python_library LIB_NAME)
     ARG "" "${one_value_args}" "${multi_value_args}" "${ARGN}"
   )
   fb_py_process_default_args(ARG_NAMESPACE ARG_BASE_DIR)
-
-  message(STATUS "#### add_fb_python_library:0.5 DEPENDS = ${ARG_DEPENDS}")
-  message(STATUS "#### add_fb_python_library:0.5 NORMAL_DEPENDS = ${ARG_NORMAL_DEPENDS}")
 
   string(REPLACE "." "/" namespace_dir "${ARG_NAMESPACE}")
   if (NOT "${namespace_dir}" STREQUAL "")
@@ -483,7 +461,6 @@ function(add_fb_python_library LIB_NAME)
   # "${LIB_NAME}" on their own as a target name.  (e.g., attempting to install
   # it directly with install(TARGETS) won't work.  Callers must use
   # install_fb_python_library() instead.)
-  message(STATUS "#### add_fb_python_library:1 creating interface library ${LIB_NAME}.py_lib")
   add_library("${LIB_NAME}.py_lib" INTERFACE)
 
   # Emit the manifest file.
@@ -498,7 +475,6 @@ function(add_fb_python_library LIB_NAME)
   file(WRITE "${tmp_manifest}" "FBPY_MANIFEST 1\n")
   set(abs_sources)
   foreach(src_path IN LISTS ARG_SOURCES)
-    message(STATUS "#### add_fb_python_library.2.1 ${src_path}")
     fb_py_compute_dest_path(
       abs_source dest_path
       "${src_path}" "${namespace_dir}" "${ARG_BASE_DIR}"
@@ -509,8 +485,6 @@ function(add_fb_python_library LIB_NAME)
       "$<BUILD_INTERFACE:${abs_source}>"
       "$<INSTALL_INTERFACE:${install_dir}${LIB_NAME}/${dest_path}>"
     )
-    message(STATUS "#### add_fb_python_library.2.2 examining dest_path ${dest_path}")
-    message(STATUS "#### add_fb_python_library.2.3 including")
     file(
       APPEND "${tmp_manifest}"
       "${abs_source} :: ${dest_path}\n"
@@ -552,13 +526,10 @@ function(add_fb_python_library LIB_NAME)
     add_dependencies("${LIB_NAME}.py_sources_built" "${dep}.py_lib")
   endforeach()
 
-  message(STATUS "#### add_fb_python_library:3")
   foreach(dep IN LISTS ARG_NORMAL_DEPENDS)
-    message(STATUS "#### add_fb_python_library:4 target_link_libraries(${LIB_NAME}.py_lib INTERFACE ${dep})")
     target_link_libraries("${LIB_NAME}.py_lib" INTERFACE "${dep}")
     add_dependencies("${LIB_NAME}.py_sources_built" "${dep}")
   endforeach()
-  message(STATUS "#### add_fb_python_library:5")
 
   # Add a custom command to help with library installation, in case
   # install_fb_python_library() is called later for this library.
@@ -612,47 +583,6 @@ function(add_fb_python_library LIB_NAME)
     BUILD_INSTALL_DIR "${build_install_dir}"
   )
 endfunction()
-
-# function(wrap_non_fb_python_library TARGET)
-#   message(STATUS "#### wrap_non_fb_python_library:0 ${TARGET}")
-#   # ${LIB_NAME}.py_sources_built
-#   #   Ensures that all source files exist
-#   #   Depends on ${dep}.py_lib
-#   # add_custom_target("${LIB_NAME}.py_sources_built" DEPENDS "${LIB_NAME}.py_lib")
-
-#   # ${LIB_NAME}.py_lib
-#   add_library("${TARGET}.py_lib" INTERFACE)
-#   add_dependencies("${TARGET}.py_lib" "${TARGET}")
-
-#   # get_target_property(binary_dir "${FULL_TARGET}" BUILD_DIR)
-#   # set(binary_dir $<TARGET_BUNDLE_DIR:${FULL_TARGET}>)
-#   get_target_property(binary_dir "${TARGET}" BINARY_DIR)
-#   message(STATUS "#### wrap_non_fb_python_library:1 binary_dir = ${binary_dir}")
-
-#   get_target_property(source_dir "${TARGET}" SOURCE_DIR)
-#   message(STATUS "#### wrap_non_fb_python_library:2 source_dir = ${source_dir}")
-
-#   get_target_property(include_dirs "${TARGET}" INCLUDE_DIRECTORIES)
-#   message(STATUS "#### wrap_non_fb_python_library:3 include_dirs = ${include_dirs}")
-
-#   # FIXME: not found
-#   # - INTERFACE_INCLUDE_DIRECTORIES
-#   get_target_property(x "${TARGET}" INTERFACE_LINK_LIBRARIES)
-#   message(STATUS "#### wrap_non_fb_python_library:4 INTERFACE_LINK_LIBRARIES = ${x}")
-
-#   get_target_property(x "${TARGET}" INTERFACE_LINK_DIRECTORIES)
-#   message(STATUS "#### wrap_non_fb_python_library:5 INTERFACE_LINK_DIRECTORIES = ${x}")
-
-#   set(manifest_path "${CMAKE_CURRENT_BINARY_DIR}/${TARGET}.manifest")
-#   message(STATUS "#### wrap_non_fb_python_library:6 manifest_path = ${manifest_path}")
-
-#   # ${LIB_NAME}.py_lib_install(
-#   #   PROPERTIES
-#   #   INSTALL_DIR "${abs_install_dir}"
-#   #   BUILD_INSTALL_DIR "${build_install_dir}"
-#   # )
-#   # Ensures that ${build_install_dir}/${LIB_NAME}.manifest exists
-# endfunction()
 
 #
 # Install an FB-style packaged python binary.

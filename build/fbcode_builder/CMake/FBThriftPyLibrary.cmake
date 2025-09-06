@@ -5,7 +5,6 @@ include(FBPythonBinary)
 
 # Generate a Python library from a thrift file
 function(add_fbthrift_py_library LIB_NAME THRIFT_FILE)
-  message(STATUS "#### add_fbthrift_py_library:0(${LIB_NAME}, ${THRIFT_FILE})")
   # Parse the arguments
   set(one_value_args NAMESPACE THRIFT_INCLUDE_DIR)
   set(multi_value_args SERVICES DEPENDS OPTIONS)
@@ -80,7 +79,6 @@ function(add_fbthrift_py_library LIB_NAME THRIFT_FILE)
   add_custom_command(
     OUTPUT
       ${generated_sources}
-    COMMENT "#### add_fbthrift_py_library:3 generating thrift sources for ${LIB_NAME}"
     COMMAND_EXPAND_LISTS
     COMMAND
       "${CMAKE_COMMAND}" -E make_directory "${output_dir}"

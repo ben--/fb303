@@ -6,13 +6,11 @@
 include(FBCMakeParseArgs)
 
 function(add_fbthrift_rust_library LIB_NAME THRIFT_FILE)
-  message(STATUS "#### add_fbthrift_rust_library:0(${LIB_NAME}, ${THRIFT_FILE})")
   set(one_value_args NAMESPACE THRIFT_INCLUDE_DIR)
   set(multi_value_args SERVICES DEPENDS OPTIONS)
   fb_cmake_parse_args(
     ARG "" "${one_value_args}" "${multi_value_args}" "${ARGN}"
   )
-  message(STATUS "#### add_fbthrift_rust_library:1 ARG_DEPENDS=${ARG_DEPENDS}")
 
   if(NOT DEFINED ARG_THRIFT_INCLUDE_DIR)
     set(ARG_THRIFT_INCLUDE_DIR "include/thrift-files")
@@ -74,8 +72,6 @@ function(add_fbthrift_rust_library LIB_NAME THRIFT_FILE)
     "-I;$<JOIN:$<TARGET_PROPERTY:${LIB_NAME}.thrift_includes,INTERFACE_INCLUDE_DIRECTORIES>,;-I;>"
   )
 
-  message(STATUS "#### add_fbthrift_rust_library:2 sending output to ${output_dir}")
-
   # CMake 3.12 is finally getting a list(JOIN) function, but until then
   # treating the list as a string and replacing the semicolons is good enough.
   string(REPLACE ";" "," GEN_ARG_STR "${ARG_OPTIONS}")
@@ -83,7 +79,6 @@ function(add_fbthrift_rust_library LIB_NAME THRIFT_FILE)
   add_custom_command(
     OUTPUT
       ${generated_sources}
-    COMMENT "#### add_fbthrift_rust_library:3 generating thrift sources for ${LIB_NAME}"
     COMMAND
       "${CMAKE_COMMAND}" -E make_directory "${output_dir}"
     COMMAND

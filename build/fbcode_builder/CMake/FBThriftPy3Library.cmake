@@ -117,7 +117,7 @@ function(add_fbthrift_py3_library LIB_NAME THRIFT_FILE)
     BASE_DIR "${output_dir}/gen-python"
     NAMESPACE ""
     SOURCES ${generated_sources}
-    DEPENDS ${ARG_DEPENDS} Folly::folly_python_cpp
+    DEPENDS ${ARG_DEPENDS}
     NORMAL_DEPENDS
       Folly::folly_python_cpp
       FBThrift::thrift_python_cpp
